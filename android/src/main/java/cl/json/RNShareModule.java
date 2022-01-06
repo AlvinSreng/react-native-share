@@ -45,15 +45,15 @@ public class RNShareModule extends ReactContextBaseJavaModule implements Activit
     private String pendingShareAppName = null;
 
     // removed @Override temporarily just to get it working on different versions of RN
-//     public void onActivityResult(int requestCode, int resultCode, Intent data) {
-//         if (requestCode == SHARE_REQUEST_CODE) {
-//             if (resultCode == Activity.RESULT_CANCELED) {
-//                 TargetChosenReceiver.sendCallback(true, false, "CANCELED");
-//             } else if (resultCode == Activity.RESULT_OK) {
-//                 TargetChosenReceiver.sendCallback(true, true);
-//             }
-//         }
-//     }
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == SHARE_REQUEST_CODE) {
+            if (resultCode == Activity.RESULT_CANCELED) {
+                TargetChosenReceiver.sendCallback(true, false, "CANCELED");
+            } else if (resultCode == Activity.RESULT_OK) {
+                TargetChosenReceiver.sendCallback(true, true);
+            }
+        }
+    }
 
     // removed @Override temporarily just to get it working on different versions of RN
     public void onActivityResult(Activity activity, int requestCode, int resultCode, Intent data) {
