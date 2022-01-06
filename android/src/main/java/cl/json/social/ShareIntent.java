@@ -253,41 +253,62 @@ public abstract class ShareIntent {
     protected void openIntentChooser() throws ActivityNotFoundException {
         Activity activity = this.reactContext.getCurrentActivity();
         if (activity == null) {
-            TargetChosenReceiver.sendCallback(false, "Something went wrong");
+//             TargetChosenReceiver.sendCallback(false, "Something went wrong");
+            TargetChosenReceiver.sendCallback(false, "main_activity_null");
             return;
         }
-        Intent chooser;
-        IntentSender intentSender = null;
-        if (TargetChosenReceiver.isSupported()) {
-            intentSender = TargetChosenReceiver.getSharingSenderIntent(this.reactContext);
-            chooser = Intent.createChooser(this.getIntent(), this.chooserTitle, intentSender);
-        } else {
-            chooser = Intent.createChooser(this.getIntent(), this.chooserTitle);
-        }
-        chooser.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY);
-
-        if (ShareIntent.hasValidKey("showAppsToView", options) && ShareIntent.hasValidKey("url", options)) {
-            Intent viewIntent = new Intent(Intent.ACTION_VIEW);
-            viewIntent.setType(this.fileShare.getType());
-
-            Intent[] viewIntents = this.getIntentsToViewFile(viewIntent, this.fileShare.getURI());
-
-            chooser.putExtra(Intent.EXTRA_INITIAL_INTENTS, viewIntents);
-        }
-
-        if (ShareIntent.hasValidKey("excludedActivityTypes", options)) {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-                chooser.putExtra(Intent.EXTRA_EXCLUDE_COMPONENTS, getExcludedComponentArray(options.getArray("excludedActivityTypes")));
-                activity.startActivityForResult(chooser, RNShareModule.SHARE_REQUEST_CODE);
-            } else {
-                activity.startActivityForResult(excludeChooserIntent(this.getIntent(),options), RNShareModule.SHARE_REQUEST_CODE);
+//         Intent chooser;
+//         IntentSender intentSender = null;
+//         if (TargetChosenReceiver.isSupported()) {
+//             intentSender = TargetChosenReceiver.getSharingSenderIntent(this.reactContext);
+//             chooser = Intent.createChooser(this.getIntent(), this.chooserTitle, intentSender);
+//         } else {
+//             chooser = Intent.createChooser(this.getIntent(), this.chooserTitle);
+        List<Intent> targetedShareIntents = new ArrayList<>();
+        List<ResolveInfo> resInfo = reactContext.getPackageManager().queryIntentActivities(this.getIntent(), 0);
+        if (!resInfo.isEmpty()) {
+            for (ResolveInfo info : resInfo) {
+                Intent targetedShare = new Intent(android.content.Intent.ACTION_SEND);
+                targetedShare.setPackage(info.activityInfo.packageName.toLowerCase());
+                targetedShare.setType("text/plain"); // put here your mime type
+                targetedShareIntents.add(targetedShare);
             }
+            // Then show the ACTION_PICK_ACTIVITY to let the user select it
+            Intent intentPick = new Intent();
+            intentPick.setAction(Intent.ACTION_PICK_ACTIVITY);
+            // Set the title of the dialog
+            intentPick.putExtra(Intent.EXTRA_TITLE, this.chooserTitle);
+            intentPick.putExtra(Intent.EXTRA_INTENT, this.getIntent());
+            intentPick.putExtra(Intent.EXTRA_INITIAL_INTENTS, targetedShareIntents.toArray());
+            // Call StartActivityForResult so we can get the app name selected by the user
+            intentPick.setFlags(Intent.FLAG_ACTIVITY_NO_HISTORY);
+            activity.startActivityForResult(intentPick, RNShareModule.SHARE_REQUEST_CODE);
         } else {
-            activity.startActivityForResult(chooser, RNShareModule.SHARE_REQUEST_CODE);
-        }
+//         chooser.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY);
 
-        if (intentSender == null) {
-            TargetChosenReceiver.sendCallback(true, true, "OK");
+//         if (ShareIntent.hasValidKey("showAppsToView", options) && ShareIntent.hasValidKey("url", options)) {
+//             Intent viewIntent = new Intent(Intent.ACTION_VIEW);
+//             viewIntent.setType(this.fileShare.getType());
+
+//             Intent[] viewIntents = this.getIntentsToViewFile(viewIntent, this.fileShare.getURI());
+
+//             chooser.putExtra(Intent.EXTRA_INITIAL_INTENTS, viewIntents);
+//         }
+
+//         if (ShareIntent.hasValidKey("excludedActivityTypes", options)) {
+//             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+//                 chooser.putExtra(Intent.EXTRA_EXCLUDE_COMPONENTS, getExcludedComponentArray(options.getArray("excludedActivityTypes")));
+//                 activity.startActivityForResult(chooser, RNShareModule.SHARE_REQUEST_CODE);
+//             } else {
+//                 activity.startActivityForResult(excludeChooserIntent(this.getIntent(),options), RNShareModule.SHARE_REQUEST_CODE);
+//             }
+//         } else {
+//             activity.startActivityForResult(chooser, RNShareModule.SHARE_REQUEST_CODE);
+//         }
+
+//         if (intentSender == null) {
+//             TargetChosenReceiver.sendCallback(true, true, "OK");
+            TargetChosenReceiver.sendCallback(false, "no_apps_available");
         }
     }
 
