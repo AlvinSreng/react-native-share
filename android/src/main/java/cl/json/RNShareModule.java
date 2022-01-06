@@ -5,6 +5,7 @@ import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.net.Uri;
 import androidx.annotation.Nullable;
+import android.text.TextUtils;
 
 import com.facebook.react.bridge.ActivityEventListener;
 import com.facebook.react.bridge.ReactApplicationContext;
@@ -39,22 +40,49 @@ import cl.json.social.LinkedinShare;
 public class RNShareModule extends ReactContextBaseJavaModule implements ActivityEventListener {
 
     public static final int SHARE_REQUEST_CODE = 16845;
+    public static final int SHARE_FINISHED_CODE = 16846;
     private final ReactApplicationContext reactContext;
+    private String pendingShareAppName = null;
 
     // removed @Override temporarily just to get it working on different versions of RN
-    public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode == SHARE_REQUEST_CODE) {
-            if (resultCode == Activity.RESULT_CANCELED) {
-                TargetChosenReceiver.sendCallback(true, false, "CANCELED");
-            } else if (resultCode == Activity.RESULT_OK) {
-                TargetChosenReceiver.sendCallback(true, true);
-            }
-        }
-    }
+//     public void onActivityResult(int requestCode, int resultCode, Intent data) {
+//         if (requestCode == SHARE_REQUEST_CODE) {
+//             if (resultCode == Activity.RESULT_CANCELED) {
+//                 TargetChosenReceiver.sendCallback(true, false, "CANCELED");
+//             } else if (resultCode == Activity.RESULT_OK) {
+//                 TargetChosenReceiver.sendCallback(true, true);
+//             }
+//         }
+//     }
 
     // removed @Override temporarily just to get it working on different versions of RN
     public void onActivityResult(Activity activity, int requestCode, int resultCode, Intent data) {
-        onActivityResult(requestCode, resultCode, data);
+//         onActivityResult(requestCode, resultCode, data);
+        if (requestCode == SHARE_REQUEST_CODE) {
+            if (pendingShareAppName != null) {
+                TargetChosenReceiver.sendCallback(false, "another_share_pending");
+                return;
+            }
+            if (resultCode != Activity.RESULT_OK) {
+                TargetChosenReceiver.sendCallback(false, "share_intent_cancelled");
+                return;
+            }
+            if (data == null || data.getComponent() == null || TextUtils.isEmpty(data.getComponent().flattenToShortString())
+            ) {
+                TargetChosenReceiver.sendCallback(false, "unknown_application");
+                return;
+            }
+            pendingShareAppName = data.getComponent().flattenToShortString();
+            activity.startActivityForResult(data, SHARE_FINISHED_CODE); // Start the selected activity
+        }
+        if (requestCode == SHARE_FINISHED_CODE) {
+            if (pendingShareAppName == null) {
+                TargetChosenReceiver.sendCallback(false, "pending_share_lost");
+                return;
+            }
+            TargetChosenReceiver.sendCallback(true, true, pendingShareAppName);
+            pendingShareAppName = null;
+        }
     }
 
     @Override
@@ -148,6 +176,10 @@ public class RNShareModule extends ReactContextBaseJavaModule implements Activit
 
     @ReactMethod
     public void open(ReadableMap options, @Nullable Callback failureCallback, @Nullable Callback successCallback) {
+                if (pendingShareAppName != null && failureCallback != null) {
+            failureCallback.invoke("another_share_pending");
+            return;
+        }
         TargetChosenReceiver.registerCallbacks(successCallback, failureCallback);
         try {
             GenericShare share = new GenericShare(this.reactContext);
